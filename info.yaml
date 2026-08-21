@@ -1,7 +1,8 @@
 # Tiny Tapeout project information
+
 project:
   title: "Configurable CAM with Masked Pattern Matching and Priority Resolution"
-  author: "Vaishnavi Patil, Nishaanth K S, Shylashree N, RV College Of Engineering"
+  author: "Vaishnavi Patil, Nishaaanth K S, Shylashree N, RV College Of Engineering"
   discord: ""
   description: "An 8-entry 8-bit configurable CAM supporting exact matching, masked pattern matching, and priority-based match resolution."
   language: "Verilog"
@@ -15,6 +16,7 @@ project:
     - "configurable_cam.v"
 
   pinout:
+    # Dedicated inputs
     ui[0]: "Data bit 0"
     ui[1]: "Data bit 1"
     ui[2]: "Data bit 2"
@@ -24,6 +26,7 @@ project:
     ui[6]: "Data bit 6"
     ui[7]: "Data bit 7"
 
+    # Dedicated outputs
     uo[0]: "Match"
     uo[1]: "Match address bit 0"
     uo[2]: "Match address bit 1"
@@ -33,13 +36,14 @@ project:
     uo[6]: "Unused"
     uo[7]: "Unused"
 
+    # Bidirectional pins
     uio[0]: "Write address bit 0"
     uio[1]: "Write address bit 1"
     uio[2]: "Write address bit 2"
-    uio[3]: "Unused"
-    uio[4]: "Unused"
-    uio[5]: "Command bit 0"
-    uio[6]: "Command bit 1"
-    uio[7]: "Command bit 2"
+    uio[3]: "Write enable"
+    uio[4]: "Load search data"
+    uio[5]: "Load mask"
+    uio[6]: "Search enable"
+    uio[7]: "Unused"
 
-  yaml_version: 6
+yaml_version: 6
