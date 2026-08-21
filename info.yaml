@@ -1,7 +1,7 @@
 # Tiny Tapeout project information
 project:
   title: "Configurable CAM with Masked Pattern Matching and Priority Resolution"
-  author: "Vaishnavi Patil"
+  author: "Vaishnavi Patil, Nishaanth K S, Shylashree N, RV College Of Engineering"
   discord: ""
   description: "An 8-entry 8-bit configurable CAM supporting exact matching, masked pattern matching, and priority-based match resolution."
   language: "Verilog"
