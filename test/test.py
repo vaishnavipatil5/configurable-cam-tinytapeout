@@ -3,123 +3,122 @@
 import cocotb
 
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ReadOnly, Timer
+from cocotb.triggers import RisingEdge, ReadOnly
 
 
 # =========================================================
-# Wait for ONE rising clock edge
+# Wait for EXACTLY ONE rising clock edge
 # =========================================================
 
 async def one_clock(dut):
     await RisingEdge(dut.clk)
+    await ReadOnly()
 
 
 # =========================================================
 # Write one CAM entry
 #
+# Tiny Tapeout mapping:
+#
 # ui_in[7:0]  = write data
 # uio_in[2:0] = write address
 # uio_in[3]   = write enable
-#
-# ONE rising edge performs the write.
 # =========================================================
 
 async def write_entry(dut, address, data):
 
     dut.ui_in.value = data
-
-    # write_enable = 1
-    # address = uio_in[2:0]
     dut.uio_in.value = (1 << 3) | address
 
-    # EXACTLY ONE rising edge
-    await RisingEdge(dut.clk)
+    # Exactly ONE rising edge performs the write
+    await one_clock(dut)
 
-    # Disable write after the clock edge
-    await Timer(1, units="ps")
+    # Disable write
     dut.uio_in.value = 0
 
 
 # =========================================================
 # Load mask
 #
-# ui_in[7:0] = mask
+# ui_in[7:0] = mask value
 # uio_in[4]  = load mask
-#
-# ONE rising edge loads the mask.
 # =========================================================
 
 async def load_mask(dut, mask):
 
     dut.ui_in.value = mask
-
-    # load_mask = 1
     dut.uio_in.value = (1 << 4)
 
-    # EXACTLY ONE rising edge
-    await RisingEdge(dut.clk)
+    # Exactly ONE rising edge loads the mask
+    await one_clock(dut)
 
-    # Disable mask loading after the edge
-    await Timer(1, units="ps")
+    # Disable mask loading
     dut.uio_in.value = 0
 
 
 # =========================================================
-# ONE-CLOCK SEARCH
+# Perform ONE-CLOCK SEARCH
+#
+# ui_in[7:0] = search data
+# uio_in[5]  = search enable
 #
 # BEFORE rising edge:
-#
-#     ui_in      = search data
-#     uio_in[5]  = search enable
+#     search data is present
+#     search enable is high
 #
 # ONE rising edge:
+#     CAM search is performed
 #
-#     CAM performs search
-#     result is registered
+# AFTER that edge:
+#     result is read from uo_out
 #
-# AFTER THAT EDGE:
-#
-#     read uo_out
-#
-# IMPORTANT:
-# We use ReadOnly ONLY for reading the output.
-# We then wait 1 ps before changing uio_in.
-#
-# Therefore there is NO illegal ReadOnly -> ReadWrite
-# transition.
+# uo_out[0]   = match
+# uo_out[3:1] = match address
 # =========================================================
 
 async def search_cam(dut, search_data):
 
-    # Put search data on input bus
+    # Put search data on ui_in BEFORE the clock edge
     dut.ui_in.value = search_data
 
-    # search_enable = 1
+    # uio_in[5] = search enable
     dut.uio_in.value = (1 << 5)
 
     # =====================================================
-    # EXACTLY ONE RISING EDGE
+    # EXACTLY ONE RISING EDGE FOR SEARCH
     # =====================================================
 
     await RisingEdge(dut.clk)
-
-    # Wait until registered output is stable
     await ReadOnly()
 
-    # Read result while search_enable is still HIGH
-    result = int(dut.uo_out.value)
+    # =====================================================
+    # Read only the required output bits
+    # =====================================================
 
-    # IMPORTANT:
-    # We are currently in ReadOnly.
-    # Do NOT use ReadWrite here.
+    match_bit = dut.uo_out[0]
+    addr_bits = dut.uo_out[3:1]
+
+    # =====================================================
+    # Check for X/Z values.
     #
-    # Move to the next simulation timestep instead.
-    await Timer(1, units="ps")
+    # This prevents cocotb from trying to convert an
+    # unresolved LogicArray directly to int.
+    # =====================================================
 
-    # Now it is safe to change the input
+    if not match_bit.is_resolvable or not addr_bits.is_resolvable:
+        raise AssertionError(
+            f"GL TEST ERROR: CAM output contains X/Z after "
+            f"search for data 0x{search_data:02X}. "
+            f"uo_out={dut.uo_out.value}"
+        )
+
+    match = int(match_bit.value)
+    match_addr = int(addr_bits.value)
+
+    # Disable search AFTER reading the result
     dut.uio_in.value = 0
 
-    return result
+    return match, match_addr
 
 
 # =========================================================
@@ -139,7 +138,7 @@ async def test_configurable_cam(dut):
     # =====================================================
 
     # 10 ns period = 100 MHz
-    clock = Clock(dut.clk, 10, units="ns")
+    clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
 
@@ -148,9 +147,9 @@ async def test_configurable_cam(dut):
     # =====================================================
 
     dut.ena.value = 1
+
     dut.ui_in.value = 0
     dut.uio_in.value = 0
-    dut.rst_n.value = 0
 
 
     # =====================================================
@@ -159,14 +158,16 @@ async def test_configurable_cam(dut):
 
     dut._log.info("Applying reset")
 
-    # Hold reset for TWO rising edges
+    # Tiny Tapeout reset is ACTIVE LOW
+    dut.rst_n.value = 0
+
+    # Hold reset for two rising edges
     await one_clock(dut)
     await one_clock(dut)
 
     # Release reset
     dut.rst_n.value = 1
 
-    # One additional clock after reset release
     await one_clock(dut)
 
     dut._log.info("Reset released")
@@ -205,16 +206,15 @@ async def test_configurable_cam(dut):
     # Expected:
     # match = 1
     # address = 0
+    #
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     dut._log.info("SEARCH 1: A5")
 
     await load_mask(dut, 0x00)
 
-    result = await search_cam(dut, 0xA5)
-
-    match = result & 0x01
-    match_addr = (result >> 1) & 0x07
+    match, match_addr = await search_cam(dut, 0xA5)
 
     assert match == 1, \
         f"FAIL: A5 should match, match={match}"
@@ -231,16 +231,15 @@ async def test_configurable_cam(dut):
     # Expected:
     # match = 1
     # address = 2
+    #
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     dut._log.info("SEARCH 2: F0")
 
     await load_mask(dut, 0x00)
 
-    result = await search_cam(dut, 0xF0)
-
-    match = result & 0x01
-    match_addr = (result >> 1) & 0x07
+    match, match_addr = await search_cam(dut, 0xF0)
 
     assert match == 1, \
         f"FAIL: F0 should match, match={match}"
@@ -255,16 +254,18 @@ async def test_configurable_cam(dut):
     # SEARCH 3: NO MATCH
     #
     # Search = 55
-    # Expected match = 0
+    #
+    # Expected:
+    # match = 0
+    #
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     dut._log.info("SEARCH 3: 55 - expected NO MATCH")
 
     await load_mask(dut, 0x00)
 
-    result = await search_cam(dut, 0x55)
-
-    match = result & 0x01
+    match, match_addr = await search_cam(dut, 0x55)
 
     assert match == 0, \
         f"FAIL: 55 should not match, match={match}"
@@ -276,29 +277,33 @@ async def test_configurable_cam(dut):
     # SEARCH 4: MASKED MATCH
     #
     # Stored:
+    #
     # A5 = 1010 0101
     #
     # Search:
+    #
     # A0 = 1010 0000
     #
     # Mask:
+    #
     # 0F = 0000 1111
     #
     # Lower four bits are ignored.
     #
+    # Therefore A0 matches A5.
+    #
     # Expected:
     # match = 1
     # address = 0
+    #
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     dut._log.info("SEARCH 4: Masked A0 -> A5")
 
     await load_mask(dut, 0x0F)
 
-    result = await search_cam(dut, 0xA0)
-
-    match = result & 0x01
-    match_addr = (result >> 1) & 0x07
+    match, match_addr = await search_cam(dut, 0xA0)
 
     assert match == 1, \
         f"FAIL: Masked A0 should match A5, match={match}"
@@ -333,22 +338,24 @@ async def test_configurable_cam(dut):
     # Address 3 = AA
     # Address 5 = AA
     #
-    # Both match.
-    # Lowest address must win.
+    # Both entries match.
+    #
+    # Lower address has priority.
+    #
+    # Therefore address 3 must win.
     #
     # Expected:
     # match = 1
     # address = 3
+    #
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     dut._log.info("SEARCH 5: Priority test for AA")
 
     await load_mask(dut, 0x00)
 
-    result = await search_cam(dut, 0xAA)
-
-    match = result & 0x01
-    match_addr = (result >> 1) & 0x07
+    match, match_addr = await search_cam(dut, 0xAA)
 
     dut._log.info(
         f"PRIORITY RESULT: match={match}, address={match_addr}"
