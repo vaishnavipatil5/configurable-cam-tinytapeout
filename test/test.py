@@ -86,18 +86,17 @@ async def search_cam(dut, search_data):
     # Search enable = 1
     dut.uio_in.value = (1 << 5)
 
-    # =====================================================
-    # EXACTLY ONE RISING EDGE FOR SEARCH
-    # =====================================================
-
+    # One rising edge performs the search
     await RisingEdge(dut.clk)
 
-    # Wait for the registered output to settle
+    # Wait for registered output to settle
     await ReadOnly()
 
-    # Read output BEFORE disabling search
-   dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
-   result = int(dut.uo_out.value)
+    # Debug output
+    dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
+
+    # Read output
+    result = int(dut.uo_out.value)
 
     # Move to next simulation timestep
     await Timer(1, units="ps")
@@ -106,7 +105,6 @@ async def search_cam(dut, search_data):
     dut.uio_in.value = 0
 
     return result
-
 
 # =========================================================
 # MAIN TEST
