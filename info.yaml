@@ -41,9 +41,9 @@ project:
     uio[1]: "Write address bit 1"
     uio[2]: "Write address bit 2"
     uio[3]: "Write enable"
-    uio[4]: "Load search data"
-    uio[5]: "Load mask"
-    uio[6]: "Search enable"
+    uio[4]: "Load mask"
+    uio[5]: "Search enable"
+    uio[6]: "Unused"
     uio[7]: "Unused"
 
 yaml_version: 6
