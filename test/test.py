@@ -96,7 +96,8 @@ async def search_cam(dut, search_data):
     await ReadOnly()
 
     # Read output BEFORE disabling search
-    result = int(dut.uo_out.value)
+   dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
+   result = int(dut.uo_out.value)
 
     # Move to next simulation timestep
     await Timer(1, units="ps")
