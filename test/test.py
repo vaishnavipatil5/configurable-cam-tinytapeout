@@ -3,19 +3,15 @@
 import cocotb
 
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ReadOnly, ReadWrite
+from cocotb.triggers import RisingEdge, ReadOnly, Timer
 
 
 # =========================================================
 # Wait for ONE rising clock edge
-#
-# This function is only used when we do not need to
-# immediately read an output after the edge.
 # =========================================================
 
 async def one_clock(dut):
     await RisingEdge(dut.clk)
-    await ReadWrite()
 
 
 # =========================================================
@@ -30,27 +26,24 @@ async def one_clock(dut):
 
 async def write_entry(dut, address, data):
 
-    # Put write data on input bus
     dut.ui_in.value = data
 
-    # Write enable = 1
-    # Address = uio_in[2:0]
+    # write_enable = 1
+    # address = uio_in[2:0]
     dut.uio_in.value = (1 << 3) | address
 
-    # ONE rising edge performs the write
+    # EXACTLY ONE rising edge
     await RisingEdge(dut.clk)
 
-    # Move to writable phase
-    await ReadWrite()
-
-    # Disable write
+    # Disable write after the clock edge
+    await Timer(1, units="ps")
     dut.uio_in.value = 0
 
 
 # =========================================================
 # Load mask
 #
-# ui_in[7:0] = mask value
+# ui_in[7:0] = mask
 # uio_in[4]  = load mask
 #
 # ONE rising edge loads the mask.
@@ -58,38 +51,42 @@ async def write_entry(dut, address, data):
 
 async def load_mask(dut, mask):
 
-    # Put mask on input bus
     dut.ui_in.value = mask
 
-    # Load mask = 1
+    # load_mask = 1
     dut.uio_in.value = (1 << 4)
 
-    # ONE rising edge loads mask
+    # EXACTLY ONE rising edge
     await RisingEdge(dut.clk)
 
-    # Move to writable phase
-    await ReadWrite()
-
-    # Disable mask loading
+    # Disable mask loading after the edge
+    await Timer(1, units="ps")
     dut.uio_in.value = 0
 
 
 # =========================================================
-# Perform ONE-CLOCK SEARCH
+# ONE-CLOCK SEARCH
 #
 # BEFORE rising edge:
 #
 #     ui_in      = search data
-#     uio_in[5]  = 1
+#     uio_in[5]  = search enable
 #
 # ONE rising edge:
 #
 #     CAM performs search
-#     match and match_addr are registered
+#     result is registered
 #
-# AFTER that same edge:
+# AFTER THAT EDGE:
 #
-#     uo_out contains the result
+#     read uo_out
+#
+# IMPORTANT:
+# We use ReadOnly ONLY for reading the output.
+# We then wait 1 ps before changing uio_in.
+#
+# Therefore there is NO illegal ReadOnly -> ReadWrite
+# transition.
 # =========================================================
 
 async def search_cam(dut, search_data):
@@ -97,25 +94,29 @@ async def search_cam(dut, search_data):
     # Put search data on input bus
     dut.ui_in.value = search_data
 
-    # Search enable = 1
+    # search_enable = 1
     dut.uio_in.value = (1 << 5)
 
     # =====================================================
-    # EXACTLY ONE RISING EDGE FOR SEARCH
+    # EXACTLY ONE RISING EDGE
     # =====================================================
 
     await RisingEdge(dut.clk)
 
-    # Wait until registered outputs are stable
+    # Wait until registered output is stable
     await ReadOnly()
 
-    # Read output while search_enable is still HIGH
+    # Read result while search_enable is still HIGH
     result = int(dut.uo_out.value)
 
-    # Move back to writable phase
-    await ReadWrite()
+    # IMPORTANT:
+    # We are currently in ReadOnly.
+    # Do NOT use ReadWrite here.
+    #
+    # Move to the next simulation timestep instead.
+    await Timer(1, units="ps")
 
-    # Disable search
+    # Now it is safe to change the input
     dut.uio_in.value = 0
 
     return result
@@ -138,7 +139,7 @@ async def test_configurable_cam(dut):
     # =====================================================
 
     # 10 ns period = 100 MHz
-    clock = Clock(dut.clk, 10, unit="ns")
+    clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
 
@@ -165,7 +166,7 @@ async def test_configurable_cam(dut):
     # Release reset
     dut.rst_n.value = 1
 
-    # Allow one clock cycle after reset release
+    # One additional clock after reset release
     await one_clock(dut)
 
     dut._log.info("Reset released")
@@ -202,10 +203,8 @@ async def test_configurable_cam(dut):
     # SEARCH 1: A5
     #
     # Expected:
-    #     match = 1
-    #     address = 0
-    #
-    # SEARCH OCCURS ON ONE RISING EDGE.
+    # match = 1
+    # address = 0
     # =====================================================
 
     dut._log.info("SEARCH 1: A5")
@@ -230,8 +229,8 @@ async def test_configurable_cam(dut):
     # SEARCH 2: F0
     #
     # Expected:
-    #     match = 1
-    #     address = 2
+    # match = 1
+    # address = 2
     # =====================================================
 
     dut._log.info("SEARCH 2: F0")
@@ -256,9 +255,7 @@ async def test_configurable_cam(dut):
     # SEARCH 3: NO MATCH
     #
     # Search = 55
-    #
-    # Expected:
-    #     match = 0
+    # Expected match = 0
     # =====================================================
 
     dut._log.info("SEARCH 3: 55 - expected NO MATCH")
@@ -279,21 +276,19 @@ async def test_configurable_cam(dut):
     # SEARCH 4: MASKED MATCH
     #
     # Stored:
-    #     A5 = 1010 0101
+    # A5 = 1010 0101
     #
     # Search:
-    #     A0 = 1010 0000
+    # A0 = 1010 0000
     #
     # Mask:
-    #     0F = 0000 1111
+    # 0F = 0000 1111
     #
     # Lower four bits are ignored.
     #
-    # Therefore A0 matches A5.
-    #
     # Expected:
-    #     match = 1
-    #     address = 0
+    # match = 1
+    # address = 0
     # =====================================================
 
     dut._log.info("SEARCH 4: Masked A0 -> A5")
@@ -339,12 +334,11 @@ async def test_configurable_cam(dut):
     # Address 5 = AA
     #
     # Both match.
-    #
-    # Lowest address has priority.
+    # Lowest address must win.
     #
     # Expected:
-    #     match = 1
-    #     address = 3
+    # match = 1
+    # address = 3
     # =====================================================
 
     dut._log.info("SEARCH 5: Priority test for AA")
