@@ -21,82 +21,134 @@ module configurable_cam #(
 );
 
     // =====================================================
-    // CAM STORAGE
+    // EXPLICIT CAM STORAGE
     // =====================================================
 
-    reg [DATA_WIDTH-1:0] cam_mem [0:DEPTH-1];
-
-    integer i;
-    integer j;
-
-    // =====================================================
-    // INTERNAL SEARCH RESULTS
-    // =====================================================
-
-    reg                   match_comb;
-    reg [ADDR_WIDTH-1:0]  match_addr_comb;
+    reg [DATA_WIDTH-1:0] cam_mem0;
+    reg [DATA_WIDTH-1:0] cam_mem1;
+    reg [DATA_WIDTH-1:0] cam_mem2;
+    reg [DATA_WIDTH-1:0] cam_mem3;
+    reg [DATA_WIDTH-1:0] cam_mem4;
+    reg [DATA_WIDTH-1:0] cam_mem5;
+    reg [DATA_WIDTH-1:0] cam_mem6;
+    reg [DATA_WIDTH-1:0] cam_mem7;
 
     // =====================================================
-    // WRITE / RESET OPERATION
+    // WRITE OPERATION
     // =====================================================
 
-   always @(posedge clk) begin
-    if (rst) begin
-        cam_mem[0] <= {DATA_WIDTH{1'b0}};
-        cam_mem[1] <= {DATA_WIDTH{1'b0}};
-        cam_mem[2] <= {DATA_WIDTH{1'b0}};
-        cam_mem[3] <= {DATA_WIDTH{1'b0}};
-        cam_mem[4] <= {DATA_WIDTH{1'b0}};
-        cam_mem[5] <= {DATA_WIDTH{1'b0}};
-        cam_mem[6] <= {DATA_WIDTH{1'b0}};
-        cam_mem[7] <= {DATA_WIDTH{1'b0}};
+    always @(posedge clk) begin
+
+        if (rst) begin
+
+            cam_mem0 <= {DATA_WIDTH{1'b0}};
+            cam_mem1 <= {DATA_WIDTH{1'b0}};
+            cam_mem2 <= {DATA_WIDTH{1'b0}};
+            cam_mem3 <= {DATA_WIDTH{1'b0}};
+            cam_mem4 <= {DATA_WIDTH{1'b0}};
+            cam_mem5 <= {DATA_WIDTH{1'b0}};
+            cam_mem6 <= {DATA_WIDTH{1'b0}};
+            cam_mem7 <= {DATA_WIDTH{1'b0}};
+
+        end
+
+        else if (write_en) begin
+
+            case (write_addr)
+
+                3'd0: cam_mem0 <= write_data;
+                3'd1: cam_mem1 <= write_data;
+                3'd2: cam_mem2 <= write_data;
+                3'd3: cam_mem3 <= write_data;
+                3'd4: cam_mem4 <= write_data;
+                3'd5: cam_mem5 <= write_data;
+                3'd6: cam_mem6 <= write_data;
+                3'd7: cam_mem7 <= write_data;
+
+                default: begin
+                end
+
+            endcase
+
+        end
+
     end
-    else if (write_en) begin
-        cam_mem[write_addr] <= write_data;
-    end
-end
+
     // =====================================================
     // PARALLEL SEARCH + MASKING + PRIORITY
     // =====================================================
+
+    reg                    match_comb;
+    reg [ADDR_WIDTH-1:0]   match_addr_comb;
 
     always @(*) begin
 
         match_comb      = 1'b0;
         match_addr_comb = {ADDR_WIDTH{1'b0}};
 
-        for (j = 0; j < DEPTH; j = j + 1) begin
-
-            /*
-             * Mask = 1 means ignore that bit.
-             *
-             * Only accept a definite equality.
-             * This prevents X from becoming a valid match.
-             */
-            if (((cam_mem[j] ^ search_data) & ~mask) == {DATA_WIDTH{1'b0}}) begin
-
-                if (match_comb == 1'b0) begin
-                    match_comb      = 1'b1;
-                    match_addr_comb = j;
-                end
-
-            end
-
+        // Address 0 has highest priority
+        if (((cam_mem0 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd0;
         end
+
+        else if (((cam_mem1 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd1;
+        end
+
+        else if (((cam_mem2 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd2;
+        end
+
+        else if (((cam_mem3 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd3;
+        end
+
+        else if (((cam_mem4 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd4;
+        end
+
+        else if (((cam_mem5 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd5;
+        end
+
+        else if (((cam_mem6 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd6;
+        end
+
+        else if (((cam_mem7 ^ search_data) & ~mask) == 0) begin
+            match_comb      = 1'b1;
+            match_addr_comb = 3'd7;
+        end
+
     end
 
     // =====================================================
-    // REGISTERED OUTPUT
+    // REGISTERED SEARCH RESULT
     // =====================================================
 
     always @(posedge clk) begin
+
         if (rst) begin
+
             match      <= 1'b0;
             match_addr <= {ADDR_WIDTH{1'b0}};
+
         end
+
         else begin
+
             match      <= match_comb;
             match_addr <= match_addr_comb;
+
         end
+
     end
 
 endmodule
