@@ -17,60 +17,177 @@ module configurable_cam #(
     output reg [ADDR_WIDTH-1:0] match_addr
 );
 
-    reg [DATA_WIDTH-1:0] cam_mem [0:DEPTH-1];
-    reg [DEPTH-1:0] valid;
+    // =====================================================
+    // EXPLICIT CAM STORAGE
+    // =====================================================
+
+    reg [7:0] mem0;
+    reg [7:0] mem1;
+    reg [7:0] mem2;
+    reg [7:0] mem3;
+    reg [7:0] mem4;
+    reg [7:0] mem5;
+    reg [7:0] mem6;
+    reg [7:0] mem7;
+
+    reg valid0;
+    reg valid1;
+    reg valid2;
+    reg valid3;
+    reg valid4;
+    reg valid5;
+    reg valid6;
+    reg valid7;
 
     reg match_comb;
-    reg [ADDR_WIDTH-1:0] match_addr_comb;
-
-    integer i;
-    integer j;
+    reg [2:0] match_addr_comb;
 
     // =====================================================
-    // CAM WRITE AND RESET
+    // WRITE + RESET
     // =====================================================
 
     always @(posedge clk) begin
+
         if (rst) begin
 
-            valid <= {DEPTH{1'b0}};
+            mem0 <= 8'h00;
+            mem1 <= 8'h00;
+            mem2 <= 8'h00;
+            mem3 <= 8'h00;
+            mem4 <= 8'h00;
+            mem5 <= 8'h00;
+            mem6 <= 8'h00;
+            mem7 <= 8'h00;
 
-            for (i = 0; i < DEPTH; i = i + 1) begin
-                cam_mem[i] <= {DATA_WIDTH{1'b0}};
-            end
+            valid0 <= 1'b0;
+            valid1 <= 1'b0;
+            valid2 <= 1'b0;
+            valid3 <= 1'b0;
+            valid4 <= 1'b0;
+            valid5 <= 1'b0;
+            valid6 <= 1'b0;
+            valid7 <= 1'b0;
 
         end
         else if (write_en) begin
 
-            cam_mem[write_addr] <= write_data;
-            valid[write_addr] <= 1'b1;
+            case (write_addr)
+
+                3'd0: begin
+                    mem0 <= write_data;
+                    valid0 <= 1'b1;
+                end
+
+                3'd1: begin
+                    mem1 <= write_data;
+                    valid1 <= 1'b1;
+                end
+
+                3'd2: begin
+                    mem2 <= write_data;
+                    valid2 <= 1'b1;
+                end
+
+                3'd3: begin
+                    mem3 <= write_data;
+                    valid3 <= 1'b1;
+                end
+
+                3'd4: begin
+                    mem4 <= write_data;
+                    valid4 <= 1'b1;
+                end
+
+                3'd5: begin
+                    mem5 <= write_data;
+                    valid5 <= 1'b1;
+                end
+
+                3'd6: begin
+                    mem6 <= write_data;
+                    valid6 <= 1'b1;
+                end
+
+                3'd7: begin
+                    mem7 <= write_data;
+                    valid7 <= 1'b1;
+                end
+
+                default: begin
+                end
+
+            endcase
 
         end
+
     end
 
     // =====================================================
-    // COMBINATIONAL SEARCH
+    // SEARCH
+    // First matching address gets priority
+    //
+    // mask = 1 -> ignore that bit
     // =====================================================
 
     always @(*) begin
 
         match_comb = 1'b0;
-        match_addr_comb = {ADDR_WIDTH{1'b0}};
+        match_addr_comb = 3'b000;
 
-        for (j = 0; j < DEPTH; j = j + 1) begin
+        if (valid0 &&
+            (((mem0 ^ search_data) & ~mask) == 8'h00)) begin
 
-            if (valid[j] == 1'b1) begin
+            match_comb = 1'b1;
+            match_addr_comb = 3'd0;
 
-                if (((cam_mem[j] ^ search_data) & ~mask) == {DATA_WIDTH{1'b0}}) begin
+        end
+        else if (valid1 &&
+                 (((mem1 ^ search_data) & ~mask) == 8'h00)) begin
 
-                    if (match_comb == 1'b0) begin
-                        match_comb = 1'b1;
-                        match_addr_comb = j[ADDR_WIDTH-1:0];
-                    end
+            match_comb = 1'b1;
+            match_addr_comb = 3'd1;
 
-                end
+        end
+        else if (valid2 &&
+                 (((mem2 ^ search_data) & ~mask) == 8'h00)) begin
 
-            end
+            match_comb = 1'b1;
+            match_addr_comb = 3'd2;
+
+        end
+        else if (valid3 &&
+                 (((mem3 ^ search_data) & ~mask) == 8'h00)) begin
+
+            match_comb = 1'b1;
+            match_addr_comb = 3'd3;
+
+        end
+        else if (valid4 &&
+                 (((mem4 ^ search_data) & ~mask) == 8'h00)) begin
+
+            match_comb = 1'b1;
+            match_addr_comb = 3'd4;
+
+        end
+        else if (valid5 &&
+                 (((mem5 ^ search_data) & ~mask) == 8'h00)) begin
+
+            match_comb = 1'b1;
+            match_addr_comb = 3'd5;
+
+        end
+        else if (valid6 &&
+                 (((mem6 ^ search_data) & ~mask) == 8'h00)) begin
+
+            match_comb = 1'b1;
+            match_addr_comb = 3'd6;
+
+        end
+        else if (valid7 &&
+                 (((mem7 ^ search_data) & ~mask) == 8'h00)) begin
+
+            match_comb = 1'b1;
+            match_addr_comb = 3'd7;
 
         end
 
@@ -86,7 +203,7 @@ module configurable_cam #(
         if (rst) begin
 
             match <= 1'b0;
-            match_addr <= {ADDR_WIDTH{1'b0}};
+            match_addr <= 3'b000;
 
         end
         else begin
