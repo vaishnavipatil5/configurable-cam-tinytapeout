@@ -3,108 +3,92 @@
 import cocotb
 
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, ReadOnly, Timer
+from cocotb.triggers import RisingEdge, Timer
 
 
 # =========================================================
-# Wait for ONE rising clock edge
+# Wait for one rising clock edge and allow gate-level delay
 # =========================================================
 
 async def one_clock(dut):
     await RisingEdge(dut.clk)
+    await Timer(2, unit="ns")
 
 
 # =========================================================
 # Write one CAM entry
-#
-# ui_in[7:0]  = write data
-# uio_in[2:0] = write address
-# uio_in[3]   = write enable
 # =========================================================
 
 async def write_entry(dut, address, data):
 
     dut.ui_in.value = data
-
-    # uio_in[3] = write enable
-    # uio_in[2:0] = address
     dut.uio_in.value = (1 << 3) | address
 
-    # One rising edge performs the write
     await RisingEdge(dut.clk)
 
-    # Move to next simulation timestep
-    await Timer(1, units="ps")
+    # Allow gate-level flip-flop delay to settle
+    await Timer(2, unit="ns")
 
-    # Disable write
     dut.uio_in.value = 0
+
+    await Timer(1, unit="ns")
 
 
 # =========================================================
 # Load mask
-#
-# ui_in[7:0] = mask
-# uio_in[4]  = load mask
 # =========================================================
 
 async def load_mask(dut, mask):
 
     dut.ui_in.value = mask
-
-    # uio_in[4] = load mask
     dut.uio_in.value = (1 << 4)
 
-    # One rising edge loads the mask
     await RisingEdge(dut.clk)
 
-    await Timer(1, units="ps")
+    # Allow gate-level delay to settle
+    await Timer(2, unit="ns")
 
-    # Disable mask loading
     dut.uio_in.value = 0
+
+    await Timer(1, unit="ns")
 
 
 # =========================================================
-# Perform ONE-CLOCK SEARCH
-#
-# ui_in[7:0] = search data
-# uio_in[5]  = search enable
-#
-# Search inputs are applied BEFORE the rising edge.
-#
-# ONE rising edge:
-#     CAM searches
-#     match and match_addr are registered
-#
-# Then the result is checked.
+# Perform one-clock search
 # =========================================================
 
 async def search_cam(dut, search_data):
 
-    # Search data
     dut.ui_in.value = search_data
-
-    # Search enable = 1
     dut.uio_in.value = (1 << 5)
 
-    # One rising edge performs the search
+    # Search is sampled on this rising edge
     await RisingEdge(dut.clk)
 
-    # Wait for registered output to settle
-    await ReadOnly()
+    # IMPORTANT:
+    # Gate-level netlist uses UNIT_DELAY=#1.
+    # Therefore do not read the registered result
+    # immediately at the clock edge.
+    await Timer(2, unit="ns")
 
-    # Debug output
     dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
 
-    # Read output
+    # Check for X/Z before converting to integer
+    value_string = str(dut.uo_out.value)
+
+    if any(bit in value_string.lower() for bit in ["x", "z"]):
+        raise AssertionError(
+            f"uo_out is still unknown after search: {value_string}"
+        )
+
     result = int(dut.uo_out.value)
 
-    # Move to next simulation timestep
-    await Timer(1, units="ps")
-
-    # Disable search
     dut.uio_in.value = 0
 
+    await Timer(1, unit="ns")
+
     return result
+
 
 # =========================================================
 # MAIN TEST
@@ -122,7 +106,6 @@ async def test_configurable_cam(dut):
     # CLOCK
     # =====================================================
 
-    # 10 ns period = 100 MHz
     clock = Clock(dut.clk, 10, unit="ns")
     cocotb.start_soon(clock.start())
 
@@ -132,9 +115,9 @@ async def test_configurable_cam(dut):
     # =====================================================
 
     dut.ena.value = 1
-
     dut.ui_in.value = 0
     dut.uio_in.value = 0
+    dut.rst_n.value = 0
 
 
     # =====================================================
@@ -143,10 +126,7 @@ async def test_configurable_cam(dut):
 
     dut._log.info("Applying reset")
 
-    # Active-low reset
-    dut.rst_n.value = 0
-
-    # Hold reset for two rising edges
+    # Hold reset for two complete clock cycles
     await one_clock(dut)
     await one_clock(dut)
 
@@ -187,10 +167,6 @@ async def test_configurable_cam(dut):
 
     # =====================================================
     # SEARCH 1: A5
-    #
-    # Expected:
-    # match = 1
-    # address = 0
     # =====================================================
 
     dut._log.info("SEARCH 1: A5")
@@ -202,21 +178,20 @@ async def test_configurable_cam(dut):
     match = result & 0x01
     match_addr = (result >> 1) & 0x07
 
-    assert match == 1, \
+    assert match == 1, (
         f"FAIL: A5 should match, match={match}"
+    )
 
-    assert match_addr == 0, \
-        f"FAIL: A5 should match address 0, address={match_addr}"
+    assert match_addr == 0, (
+        f"FAIL: A5 should match address 0, "
+        f"address={match_addr}"
+    )
 
     dut._log.info("PASS: Exact match A5 -> Address 0")
 
 
     # =====================================================
     # SEARCH 2: F0
-    #
-    # Expected:
-    # match = 1
-    # address = 2
     # =====================================================
 
     dut._log.info("SEARCH 2: F0")
@@ -228,20 +203,20 @@ async def test_configurable_cam(dut):
     match = result & 0x01
     match_addr = (result >> 1) & 0x07
 
-    assert match == 1, \
+    assert match == 1, (
         f"FAIL: F0 should match, match={match}"
+    )
 
-    assert match_addr == 2, \
-        f"FAIL: F0 should match address 2, address={match_addr}"
+    assert match_addr == 2, (
+        f"FAIL: F0 should match address 2, "
+        f"address={match_addr}"
+    )
 
     dut._log.info("PASS: Exact match F0 -> Address 2")
 
 
     # =====================================================
     # SEARCH 3: NO MATCH
-    #
-    # Search = 55
-    # Expected match = 0
     # =====================================================
 
     dut._log.info("SEARCH 3: 55 - expected NO MATCH")
@@ -252,29 +227,15 @@ async def test_configurable_cam(dut):
 
     match = result & 0x01
 
-    assert match == 0, \
+    assert match == 0, (
         f"FAIL: 55 should not match, match={match}"
+    )
 
     dut._log.info("PASS: No match for 55")
 
 
     # =====================================================
     # SEARCH 4: MASKED MATCH
-    #
-    # Stored:
-    # A5 = 1010 0101
-    #
-    # Search:
-    # A0 = 1010 0000
-    #
-    # Mask:
-    # 0F = 0000 1111
-    #
-    # Lower four bits are ignored.
-    #
-    # Expected:
-    # match = 1
-    # address = 0
     # =====================================================
 
     dut._log.info("SEARCH 4: Masked A0 -> A5")
@@ -286,13 +247,17 @@ async def test_configurable_cam(dut):
     match = result & 0x01
     match_addr = (result >> 1) & 0x07
 
-    assert match == 1, \
-        f"FAIL: Masked A0 should match A5, match={match}"
+    assert match == 1, (
+        f"FAIL: Masked A0 should match A5, "
+        f"match={match}"
+    )
 
-    assert match_addr == 0, \
-        f"FAIL: Masked A0 should match address 0, address={match_addr}"
+    assert match_addr == 0, (
+        f"FAIL: Masked A0 should match address 0, "
+        f"address={match_addr}"
+    )
 
-    dut._log.info("PASS: Masked match A? -> Address 0")
+    dut._log.info("PASS: Masked match A0 -> Address 0")
 
 
     # =====================================================
@@ -315,17 +280,6 @@ async def test_configurable_cam(dut):
 
     # =====================================================
     # SEARCH 5: PRIORITY
-    #
-    # Address 3 = AA
-    # Address 5 = AA
-    #
-    # Both match.
-    #
-    # Address 3 has priority.
-    #
-    # Expected:
-    # match = 1
-    # address = 3
     # =====================================================
 
     dut._log.info("SEARCH 5: Priority test for AA")
@@ -338,14 +292,18 @@ async def test_configurable_cam(dut):
     match_addr = (result >> 1) & 0x07
 
     dut._log.info(
-        f"PRIORITY RESULT: match={match}, address={match_addr}"
+        f"PRIORITY RESULT: match={match}, "
+        f"address={match_addr}"
     )
 
-    assert match == 1, \
+    assert match == 1, (
         f"FAIL: AA should match, match={match}"
+    )
 
-    assert match_addr == 3, \
-        f"FAIL: Priority should select address 3, address={match_addr}"
+    assert match_addr == 3, (
+        f"FAIL: Priority should select address 3, "
+        f"address={match_addr}"
+    )
 
     dut._log.info("PASS: Priority match AA -> Address 3")
 
