@@ -41,16 +41,20 @@ module configurable_cam #(
     // =====================================================
 
     always @(posedge clk) begin
-        if (rst) begin
-            for (i = 0; i < DEPTH; i = i + 1) begin
-                cam_mem[i] <= {DATA_WIDTH{1'b0}};
-            end
-        end
-        else if (write_en) begin
-            cam_mem[write_addr] <= write_data;
-        end
+    if (rst) begin
+        cam_mem[0] <= 8'h00;
+        cam_mem[1] <= 8'h00;
+        cam_mem[2] <= 8'h00;
+        cam_mem[3] <= 8'h00;
+        cam_mem[4] <= 8'h00;
+        cam_mem[5] <= 8'h00;
+        cam_mem[6] <= 8'h00;
+        cam_mem[7] <= 8'h00;
     end
-
+    else if (write_en) begin
+        cam_mem[write_addr] <= write_data;
+    end
+end
     // =====================================================
     // PARALLEL SEARCH + MASKING + PRIORITY
     // =====================================================
