@@ -13,20 +13,22 @@ module tt_um_vaishnavipatil5_configurable_cam (
     input  wire rst_n
 );
 
+    // =========================================================
     // Tiny Tapeout pin mapping
+    // =========================================================
     //
-    // ui_in[7:0]  : Data / Search data
+    // ui_in[7:0]  : Write data / Search data / Mask data
     //
     // uio_in[2:0] : Write address
     // uio_in[3]   : Write enable
     // uio_in[4]   : Load mask
     // uio_in[5]   : Search enable
-    // uio_in[6]   : Unused
-    // uio_in[7]   : Unused
     //
     // uo_out[0]   : Match
     // uo_out[3:1] : Match address
     // uo_out[7:4] : Unused
+    //
+    // =========================================================
 
     wire [2:0] write_addr;
     wire       write_en;
@@ -38,27 +40,39 @@ module tt_um_vaishnavipatil5_configurable_cam (
     assign load_mask  = uio_in[4];
     assign search_en  = uio_in[5];
 
-    // Mask register
-    reg [7:0] mask_reg = 8'h00;
+    // =========================================================
+    // MASK REGISTER
+    // =========================================================
+
+    reg [7:0] mask_reg;
 
     wire cam_rst;
 
+    // rst_n is active-low
     assign cam_rst = ~rst_n;
 
     always @(posedge clk) begin
+
         if (cam_rst) begin
             mask_reg <= 8'h00;
         end
         else if (load_mask) begin
             mask_reg <= ui_in;
         end
+
     end
 
-    // CAM outputs
+    // =========================================================
+    // CAM OUTPUTS
+    // =========================================================
+
     wire       cam_match;
     wire [2:0] cam_match_addr;
 
-    // CAM core
+    // =========================================================
+    // CAM CORE
+    // =========================================================
+
     configurable_cam #(
         .DATA_WIDTH (8),
         .DEPTH      (8),
@@ -78,21 +92,46 @@ module tt_um_vaishnavipatil5_configurable_cam (
         .match_addr  (cam_match_addr)
     );
 
-    // Output mapping
-   // Output mapping
-assign uo_out = {
-    4'b0000,
-    cam_match_addr[2],
-    cam_match_addr[1],
-    cam_match_addr[0],
-    cam_match
-};
-    // Bidirectional pins used only as inputs
+    // =========================================================
+    // OUTPUT MAPPING
+    // =========================================================
+    //
+    // uo_out[0]   = match
+    // uo_out[3:1] = match address
+    // uo_out[7:4] = 0000
+    //
+    // Search enable is NOT used to gate the registered result.
+    // The CAM result itself is registered on the clock edge.
+    //
+    // =========================================================
+
+    assign uo_out = {
+        4'b0000,
+        cam_match_addr,
+        cam_match
+    };
+
+    // =========================================================
+    // BIDIRECTIONAL PINS
+    // Used only as inputs.
+    // =========================================================
+
     assign uio_out = 8'b00000000;
     assign uio_oe  = 8'b00000000;
 
-    // Prevent unused-input warnings
-    wire _unused = &{ena, uio_in[6], uio_in[7], 1'b0};
+    // =========================================================
+    // UNUSED INPUTS
+    // =========================================================
+
+    wire _unused;
+
+    assign _unused = &{
+        ena,
+        search_en,
+        uio_in[6],
+        uio_in[7],
+        1'b0
+    };
 
 endmodule
 
