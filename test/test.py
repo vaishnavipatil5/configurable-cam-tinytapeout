@@ -96,14 +96,7 @@ async def search_cam(dut, search_data):
     dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
 
     # Read output
-    value = dut.uo_out.value.binstr
-
-dut._log.info(f"DEBUG uo_out = {value}")
-
-value = value.replace("x", "0").replace("X", "0")
-value = value.replace("z", "0").replace("Z", "0")
-
-result = int(value, 2)
+    result = int(dut.uo_out.value)
 
     # Move to next simulation timestep
     await Timer(1, units="ps")
