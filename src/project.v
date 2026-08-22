@@ -79,14 +79,14 @@ module tt_um_vaishnavipatil5_configurable_cam (
     );
 
     // Output mapping
-    assign uo_out[0] = search_en ? cam_match : 1'b0;
-
-    assign uo_out[1] = search_en ? cam_match_addr[0] : 1'b0;
-    assign uo_out[2] = search_en ? cam_match_addr[1] : 1'b0;
-    assign uo_out[3] = search_en ? cam_match_addr[2] : 1'b0;
-
-    assign uo_out[7:4] = 4'b0000;
-
+   // Output mapping
+assign uo_out = {
+    4'b0000,
+    search_en ? cam_match_addr[2] : 1'b0,
+    search_en ? cam_match_addr[1] : 1'b0,
+    search_en ? cam_match_addr[0] : 1'b0,
+    search_en ? cam_match : 1'b0
+};
     // Bidirectional pins used only as inputs
     assign uio_out = 8'b00000000;
     assign uio_oe  = 8'b00000000;
