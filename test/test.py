@@ -59,37 +59,32 @@ async def load_mask(dut, mask):
 
 async def search_cam(dut, search_data):
 
+    # Apply search data and enable BEFORE the clock edge
     dut.ui_in.value = search_data
     dut.uio_in.value = (1 << 5)
 
-    # Search is sampled on this rising edge
+    # ONE AND ONLY ONE rising edge performs the search
     await RisingEdge(dut.clk)
 
-    # IMPORTANT:
-    # Gate-level netlist uses UNIT_DELAY=#1.
-    # Therefore do not read the registered result
-    # immediately at the clock edge.
+    # Allow the gate-level output of the flip-flops to propagate.
+    # This is NOT another clock cycle.
     await Timer(2, unit="ns")
 
     dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
 
-    # Check for X/Z before converting to integer
-    value_string = str(dut.uo_out.value)
+    value = str(dut.uo_out.value)
 
-    if any(bit in value_string.lower() for bit in ["x", "z"]):
+    if "X" in value.upper() or "Z" in value.upper():
         raise AssertionError(
-            f"uo_out is still unknown after search: {value_string}"
+            f"uo_out is unknown after one-clock search: {value}"
         )
 
     result = int(dut.uo_out.value)
 
+    # Disable search
     dut.uio_in.value = 0
 
-    await Timer(1, unit="ns")
-
     return result
-
-
 # =========================================================
 # MAIN TEST
 # =========================================================
