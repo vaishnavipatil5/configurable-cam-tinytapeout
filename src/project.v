@@ -39,7 +39,7 @@ module tt_um_vaishnavipatil5_configurable_cam (
     assign search_en  = uio_in[5];
 
     // Mask register
-    reg [7:0] mask_reg;
+    reg [7:0] mask_reg = 8'h00;
 
     wire cam_rst;
 
