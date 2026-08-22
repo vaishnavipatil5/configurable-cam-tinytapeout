@@ -41,14 +41,14 @@ module configurable_cam #(
     // WRITE OPERATION
     // =====================================================
 
-    always @(posedge clk) begin
+   always @(posedge clk) begin
 
-        if (rst) begin
+    if (rst) begin
 
-            for (i = 0; i < DEPTH; i = i + 1)
-                cam_mem[i] <= {DATA_WIDTH{1'b0}};
+        for (i = 0; i < DEPTH; i = i + 1)
+            cam_mem[i] <= 8'h00;
 
-        end
+    end
 
         else if (write_en) begin
 
