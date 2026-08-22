@@ -23,16 +23,23 @@ module configurable_cam #(
 );
 
     // =========================================================
-    // CAM STORAGE
+    // CAM MEMORY
     // =========================================================
 
     reg [DATA_WIDTH-1:0] cam_mem [0:DEPTH-1];
+
+    // =========================================================
+    // SEARCH RESULT - COMBINATIONAL
+    // =========================================================
+
+    reg                    match_comb;
+    reg [ADDR_WIDTH-1:0]   match_addr_comb;
 
     integer i;
     integer j;
 
     // =========================================================
-    // WRITE / RESET
+    // CAM WRITE AND RESET
     // =========================================================
 
     always @(posedge clk) begin
@@ -52,12 +59,38 @@ module configurable_cam #(
     end
 
     // =========================================================
-    // SYNCHRONOUS ONE-CLOCK SEARCH
+    // COMBINATIONAL CAM SEARCH
     //
-    // mask = 1 -> ignore that bit
-    // mask = 0 -> compare that bit
+    // mask = 0 -> compare bit
+    // mask = 1 -> ignore bit
     //
-    // First matching address gets priority.
+    // Lowest address has priority.
+    // =========================================================
+
+    always @(*) begin
+
+        match_comb      = 1'b0;
+        match_addr_comb = {ADDR_WIDTH{1'b0}};
+
+        for (j = 0; j < DEPTH; j = j + 1) begin
+
+            if (!match_comb &&
+                (((cam_mem[j] ^ search_data) & ~mask) ==
+                 {DATA_WIDTH{1'b0}})) begin
+
+                match_comb      = 1'b1;
+                match_addr_comb = j;
+
+            end
+
+        end
+
+    end
+
+    // =========================================================
+    // REGISTERED SEARCH RESULT
+    //
+    // Result is captured on ONE rising clock edge.
     // =========================================================
 
     always @(posedge clk) begin
@@ -70,25 +103,8 @@ module configurable_cam #(
         end
         else begin
 
-            // Default result: no match
-            match      <= 1'b0;
-            match_addr <= {ADDR_WIDTH{1'b0}};
-
-            // Search all CAM entries
-            for (j = 0; j < DEPTH; j = j + 1) begin
-
-                if (((cam_mem[j] ^ search_data) & ~mask) ==
-                    {DATA_WIDTH{1'b0}}) begin
-
-                    // First matching entry gets priority
-                    if (match == 1'b0) begin
-                        match      <= 1'b1;
-                        match_addr <= j[ADDR_WIDTH-1:0];
-                    end
-
-                end
-
-            end
+            match      <= match_comb;
+            match_addr <= match_addr_comb;
 
         end
 
