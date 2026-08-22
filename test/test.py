@@ -59,15 +59,20 @@ async def load_mask(dut, mask):
 
 async def search_cam(dut, search_data):
 
-    # Apply search data and enable BEFORE the clock edge
+    # Apply search data before the clock edge
     dut.ui_in.value = search_data
+
+    # Search enable
     dut.uio_in.value = (1 << 5)
 
-    # ONE AND ONLY ONE rising edge performs the search
+    # =====================================================
+    # ONE AND ONLY ONE SEARCH CLOCK EDGE
+    # =====================================================
+
     await RisingEdge(dut.clk)
 
-    # Allow the gate-level output of the flip-flops to propagate.
-    # This is NOT another clock cycle.
+    # Allow gate-level propagation to settle.
+    # This is NOT another clock edge.
     await Timer(2, unit="ns")
 
     dut._log.info(f"DEBUG uo_out = {dut.uo_out.value}")
