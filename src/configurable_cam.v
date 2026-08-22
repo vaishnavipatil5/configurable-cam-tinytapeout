@@ -40,16 +40,16 @@ module configurable_cam #(
     // WRITE / RESET OPERATION
     // =====================================================
 
-    always @(posedge clk) begin
+   always @(posedge clk) begin
     if (rst) begin
-        cam_mem[0] <= 8'h00;
-        cam_mem[1] <= 8'h00;
-        cam_mem[2] <= 8'h00;
-        cam_mem[3] <= 8'h00;
-        cam_mem[4] <= 8'h00;
-        cam_mem[5] <= 8'h00;
-        cam_mem[6] <= 8'h00;
-        cam_mem[7] <= 8'h00;
+        cam_mem[0] <= {DATA_WIDTH{1'b0}};
+        cam_mem[1] <= {DATA_WIDTH{1'b0}};
+        cam_mem[2] <= {DATA_WIDTH{1'b0}};
+        cam_mem[3] <= {DATA_WIDTH{1'b0}};
+        cam_mem[4] <= {DATA_WIDTH{1'b0}};
+        cam_mem[5] <= {DATA_WIDTH{1'b0}};
+        cam_mem[6] <= {DATA_WIDTH{1'b0}};
+        cam_mem[7] <= {DATA_WIDTH{1'b0}};
     end
     else if (write_en) begin
         cam_mem[write_addr] <= write_data;
