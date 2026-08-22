@@ -33,31 +33,23 @@ module configurable_cam #(
     // INTERNAL SEARCH RESULTS
     // =====================================================
 
-    reg                    match_comb;
-    reg [ADDR_WIDTH-1:0]   match_addr_comb;
-
+    reg                   match_comb;
+    reg [ADDR_WIDTH-1:0]  match_addr_comb;
 
     // =====================================================
-    // WRITE OPERATION
+    // WRITE / RESET OPERATION
     // =====================================================
 
-   always @(posedge clk) begin
-
-    if (rst) begin
-
-        for (i = 0; i < DEPTH; i = i + 1)
-            cam_mem[i] <= 8'h00;
-
-    end
-
-        else if (write_en) begin
-
-            cam_mem[write_addr] <= write_data;
-
+    always @(posedge clk) begin
+        if (rst) begin
+            for (i = 0; i < DEPTH; i = i + 1) begin
+                cam_mem[i] <= {DATA_WIDTH{1'b0}};
+            end
         end
-
+        else if (write_en) begin
+            cam_mem[write_addr] <= write_data;
+        end
     end
-
 
     // =====================================================
     // PARALLEL SEARCH + MASKING + PRIORITY
@@ -65,53 +57,42 @@ module configurable_cam #(
 
     always @(*) begin
 
-        // Default values
         match_comb      = 1'b0;
         match_addr_comb = {ADDR_WIDTH{1'b0}};
 
-        // Search all CAM entries
         for (j = 0; j < DEPTH; j = j + 1) begin
 
-            // Compare data.
-            // mask = 1 means that bit is ignored.
-            if (((cam_mem[j] ^ search_data) & ~mask) == 0) begin
+            /*
+             * Mask = 1 means ignore that bit.
+             *
+             * Only accept a definite equality.
+             * This prevents X from becoming a valid match.
+             */
+            if (((cam_mem[j] ^ search_data) & ~mask) == {DATA_WIDTH{1'b0}}) begin
 
-                // First matching address gets priority
-                if (!match_comb) begin
-
+                if (match_comb == 1'b0) begin
                     match_comb      = 1'b1;
-                    match_addr_comb = j[ADDR_WIDTH-1:0];
-
+                    match_addr_comb = j;
                 end
 
             end
 
         end
-
     end
-
 
     // =====================================================
     // REGISTERED OUTPUT
-    // Search result captured on ONE rising clock edge
     // =====================================================
 
     always @(posedge clk) begin
-
         if (rst) begin
-
             match      <= 1'b0;
             match_addr <= {ADDR_WIDTH{1'b0}};
-
         end
-
         else begin
-
             match      <= match_comb;
             match_addr <= match_addr_comb;
-
         end
-
     end
 
 endmodule
