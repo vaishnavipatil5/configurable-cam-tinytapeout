@@ -2,7 +2,7 @@
 
 **Tiny Tapeout submission, SKY130 130nm, TTSKY26C shuttle**
 
-- [Read the full project documentation](info.md)
+- [Read the full project documentation](docs/info.md)
 - [View the project repository](https://github.com/vaishnavipatil5/configurable-cam-tinytapeout)
 
 ## What is this?
