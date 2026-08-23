@@ -1,43 +1,72 @@
-# Configurable CAM
+# 8-bit Configurable CAM with Masked Search and Priority Matching
 
 ## How it works
 
-The design implements an 8-entry, 8-bit configurable Content Addressable Memory (CAM).
+This project implements an 8-bit configurable Content-Addressable Memory (CAM) for Tiny Tapeout SKY26C.
 
-Each CAM entry stores an 8-bit data value. During a write operation, the input data is stored at the selected address.
+The CAM stores 8-bit data words in multiple memory locations and allows the stored contents to be searched in parallel using an input search value.
 
-During a search operation, the input search data is compared with all stored entries simultaneously.
+The design supports three main operations:
 
-The CAM supports exact matching and masked matching. The mask allows selected bits of the search pattern to be ignored.
+- Write data to a selected CAM address
+- Search for an exact data match
+- Search using a masked value
 
-When multiple entries match the search data, priority resolution selects the lowest matching address.
+During a search operation, the input search value is compared against the stored CAM entries. If an exact match is found, the corresponding address is reported.
 
-The search result is registered on a single rising clock edge. The output indicates whether a match occurred and provides the address of the highest-priority matching entry.
+The CAM also supports masked matching, where selected bits of the search value can be ignored during comparison. This allows partially specified search patterns to be matched against stored data.
+
+When multiple CAM entries match the same search value, a priority matching mechanism selects the lowest matching address as the result.
+
+The main blocks are:
+
+- 8-bit CAM memory array
+- Parallel comparison logic
+- Masked comparison logic
+- Address decoding
+- Priority encoder
+- Search and write control logic
+- Match detection and output logic
+
+The design is intended to provide compact and configurable content-addressable searching suitable for small digital lookup and pattern-matching applications.
 
 ## How to test
 
-The design can be tested using the cocotb testbench in the `test` directory.
+1. Apply reset by driving `rst_n` low.
+2. Release reset by driving `rst_n` high.
+3. Enable the design using the appropriate enable signal.
+4. Perform a write operation by providing an 8-bit data value and selecting the required CAM address.
+5. Perform a search operation by providing the required 8-bit search value.
+6. Verify that an exact match produces the corresponding stored address.
+7. Verify that a search value with no matching entry produces a no-match result.
+8. Apply a mask and verify that the masked bits are ignored during comparison.
+9. Write the same data value to multiple CAM addresses.
+10. Perform a priority search and verify that the lowest matching address is returned.
+11. Verify that the CAM produces the expected result within the required clock cycle.
 
-The testbench first resets the CAM and writes several data values into different addresses.
+The Cocotb testbench in `test/test.py` performs functional verification of the CAM, including write operations, exact-match searches, no-match searches, masked matching, and priority matching.
 
-It then performs exact-match searches, a no-match search, a masked search, and a priority-resolution test.
+The gate-level test verifies the hardened design and confirms that the CAM functionality is preserved after synthesis and physical implementation.
 
-Each CAM search operation is performed on exactly one rising clock edge.
+## Verification
 
-The expected match status and match address are checked automatically by the cocotb testbench.
+The design has been successfully verified through the Tiny Tapeout SKY26C flow.
 
-## Pin description
+- Precheck: PASS
+- Gate-level test: PASS
+- DRC: PASS with 0 errors
+- LVS: PASS
+- GDS generation: PASS
 
-The `ui_in[7:0]` pins provide the 8-bit data input.
+The gate-level verification includes:
 
-The `uio_in[2:0]` pins select the CAM write address.
+- Exact match verification
+- No-match verification
+- Masked match verification
+- Priority match verification
 
-`uio_in[3]` is the write-enable signal.
+## Credits
 
-`uio_in[4]` loads the search mask.
+We gratefully acknowledge the Center of Excellence (CoE) in Integrated Circuits and Systems (ICAS) and the Department of Electronics and Communication Engineering (ECE) for providing the necessary resources and guidance.
 
-`uio_in[5]` enables the search operation.
-
-`uo_out[0]` indicates whether a match occurred.
-
-`uo_out[3:1]` provide the matching CAM address.
+Special thanks to Dr. H V Ravish Aradhya (HoD- ECE), Dr. K R Usha Rani (Associate Dean-PG), Dr. K. S. Geetha (Vice Principal) and Dr. K. N. Subramanya (Principal) for their constant encouragement and support in facilitating this Tiny Tapeout SKY26C submission.
