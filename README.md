@@ -1,47 +1,76 @@
-# Testbench – Configurable CAM with Masked Pattern Matching and Priority Resolution
+# Configurable CAM with Masked Pattern Matching and Priority Resolution
 
-This directory contains the simulation and verification environment for the **Configurable CAM with Masked Pattern Matching and Priority Resolution** Tiny Tapeout SKY26C project.
+**Tiny Tapeout submission, SKY130 130nm, TTSKY26C shuttle**
 
-The testbench uses **Cocotb** and Verilog to verify the functionality of the CAM at RTL and, where applicable, at gate level.
+- [Read the full project documentation](info.md)
+- [View the project repository](https://github.com/vaishnavipatil5/configurable-cam-tinytapeout)
 
-## Testbench Files
+## What is this?
 
-- `tb.v` – Verilog testbench and DUT interface
-- `test.py` – Cocotb-based functional tests
-- `Makefile` – Simulation and gate-level simulation configuration
-- `requirements.txt` – Python dependencies
-- `tb.gtkw` – GTKWave waveform configuration
-- `gate_level_netlist.v` – Gate-level netlist used for post-hardening simulation
+This project implements a compact **8-bit configurable Content-Addressable Memory (CAM)** with masked pattern matching and priority resolution.
 
-## What is Verified?
+Unlike conventional memory, where stored data is accessed using an address, a CAM searches its stored contents using an input search pattern. The design compares the search value against the stored CAM entries and returns the address of a matching entry.
 
-The verification environment checks the major functional operations of the CAM, including:
+The CAM supports exact pattern matching and masked pattern matching. When multiple entries match the search pattern, the lowest matching address is selected as the priority result.
 
-- Reset operation
-- CAM write operation
-- Exact-match search
-- No-match search
-- Masked pattern matching
-- Match detection
-- Priority resolution
-- Address generation
-- One-clock search operation
+The complete design was implemented through the **Tiny Tapeout SKY130 digital ASIC flow**, generating a final GDSII layout suitable for submission.
 
-## RTL Simulation
+## Design summary
 
-The simulation uses the RTL source specified in the Makefile and runs the Cocotb testbench.
+- **Architecture:** 8-bit configurable CAM
+- **Function:** Content-addressable data searching
+- **Storage:** 8 entries
+- **Data width:** 8 bits
+- **Matching:** Exact and masked pattern matching
+- **Mask:** 8-bit configurable mask
+- **Priority:** Lowest matching address
+- **Search:** One-clock search operation
+- **HDL:** Verilog
+- **Technology:** SKY130 130nm
+- **Target:** Tiny Tapeout SKY26C
+- **Top module:** `tt_um_vaishnavipatil5_configurable_cam`
+- **Implementation:** RTL-to-GDSII
+- **Physical verification:** DRC and LVS passed
+- **DRC result:** 0 violations
+- **LVS result:** Circuits match uniquely
 
-The generated waveform can be inspected using GTKWave or Surfer.
+## How does it work?
 
-## Gate-Level Simulation
+The CAM stores 8-bit data values at eight different addresses.
 
-After the design has been hardened, the generated gate-level netlist can be used for post-implementation verification.
+During a write operation, an 8-bit data value is stored at the selected CAM address.
 
-Copy the generated gate-level netlist into this directory as:
+During a search operation, the input search value is compared with all stored CAM entries.
 
-`gate_level_netlist.v`
+The mask controls which bits participate in the comparison. A mask bit of `0` means that the corresponding bit is compared, while a mask bit of `1` means that the corresponding bit is ignored.
 
-The gate-level simulation can then be run using:
+If a matching entry is found, the CAM generates a match indication and provides the corresponding address.
 
-```bash
-make -B GATES=yes
+When multiple entries match the search pattern, the lowest matching address is selected as the priority result. The search result is registered on one rising clock edge.
+
+Thus, the overall architecture combines:
+
+**CAM Storage + Parallel Comparison + Masked Pattern Matching + Match Detection + Priority Resolution**
+
+## What is Tiny Tapeout?
+
+Tiny Tapeout is an educational project that makes it easier and more affordable to manufacture small digital and analog designs on real silicon.
+
+To learn more, visit:
+
+https://tinytapeout.com/
+
+## Project Team
+
+This project was executed by:
+
+Vaishnavi Patil, Nishaanth K S, Shylashree N
+
+RV College of Engineering (RVCE), Bengaluru
+
+## Resources
+
+- [Tiny Tapeout](https://tinytapeout.com/)
+- [Tiny Tapeout FAQ](https://tinytapeout.com/faq/)
+- [Digital Design Lessons](https://tinytapeout.com/digital_design/)
+- [Build Your Design Locally](https://www.tinytapeout.com/guides/local-hardening/)
