@@ -1,47 +1,142 @@
-# Sample testbench for a Tiny Tapeout project
+# Testbench – Configurable CAM with Masked Pattern Matching and Priority Resolution
 
-This is a sample testbench for a Tiny Tapeout project. It uses [cocotb](https://docs.cocotb.org/en/stable/) to drive the DUT and check the outputs.
-See below to get started or for more information, check the [website](https://tinytapeout.com/hdl/testing/).
+This directory contains the simulation and verification environment for the **Configurable CAM with Masked Pattern Matching and Priority Resolution** Tiny Tapeout project.
 
-## Setting up
+The testbench uses **Cocotb** and Verilog to verify the functionality of the CAM at RTL and, where applicable, at gate level.
 
-1. Edit [Makefile](Makefile) and modify `PROJECT_SOURCES` to point to your Verilog files.
-2. Edit [tb.v](tb.v) and replace `tt_um_example` with your module name.
+## Testbench Files
 
-## How to run
+- `tb.v` – Verilog testbench and DUT interface
+- `test.py` – Cocotb-based functional tests
+- `Makefile` – Simulation and gate-level simulation configuration
+- `requirements.txt` – Python dependencies
+- `tb.gtkw` – GTKWave waveform configuration
+- `gate_level_netlist.v` – Gate-level netlist used for post-hardening simulation
 
-To run the RTL simulation:
+## What is Verified?
 
-```sh
-make -B
-```
+The verification environment checks the major functional blocks of the CAM, including:
 
-To run gatelevel simulation, first harden your project and copy `../runs/wokwi/results/final/verilog/gl/{your_module_name}.v` to `gate_level_netlist.v`.
+- Reset operation
+- CAM write operation
+- Exact pattern matching
+- No-match detection
+- Masked pattern matching
+- Match detection
+- Lowest-address priority resolution
+- Match address generation
+- One-clock search operation
 
-Then run:
+## RTL Simulation
 
-```sh
+The simulation uses the RTL source specified in the Makefile and runs the Cocotb testbench.
+
+The generated waveform can be inspected using GTKWave or Surfer.
+
+## Gate-Level Simulation
+
+After the design has been hardened, the generated gate-level netlist can be used for post-implementation verification.
+
+Copy the generated gate-level netlist into this directory as:
+
+gate_level_netlist.v
+
+The gate-level simulation can then be run using:
+
 make -B GATES=yes
-```
 
-If you wish to save the waveform in VCD format instead of FST format, edit tb.v to use `$dumpfile("tb.vcd");` and then run:
+The gate-level simulation uses the SKY130 standard-cell library models and the hardened netlist to verify that the implemented design maintains the expected functionality.
 
-```sh
+## Waveform Output
+
+The default simulation generates an FST waveform.
+
+To generate a VCD waveform instead, modify the testbench to use:
+
+$dumpfile("tb.vcd");
+
+and run:
+
 make -B FST=
-```
 
-This will generate `tb.vcd` instead of `tb.fst`.
+This generates:
 
-## How to view the waveform file
+tb.vcd
 
-Using GTKWave
+instead of:
 
-```sh
+tb.fst
+
+## Viewing Waveforms
+
+GTKWave
+
+To view the FST waveform:
+
 gtkwave tb.fst tb.gtkw
-```
 
-Using Surfer
+For a VCD waveform:
 
-```sh
+gtkwave tb.vcd
+
+Surfer
+
+The FST waveform can also be viewed using Surfer:
+
 surfer tb.fst
-```
+
+## Expected Verification Behavior
+
+During simulation, the CAM should:
+
+Store 8-bit input data at the selected CAM address.
+
+Compare the 8-bit search value against the stored CAM entries.
+
+Detect an exact match when the search value is present.
+
+Report no match when the search value is not present.
+
+Perform masked pattern matching when a mask is applied.
+
+Ignore the bits for which the mask is set.
+
+Resolve multiple matching entries by selecting the lowest matching address.
+
+Register the match result and match address on one rising clock edge.
+
+The waveform can be used to observe the CAM write operation, search operation, match detection, masked matching, and lowest-address priority behavior.
+
+The Cocotb testbench verifies the following representative cases:
+
+A5 → exact match at address 0.
+
+F0 → exact match at address 2.
+
+55 → no match.
+
+A0 with mask 0F → masked match at address 0.
+
+AA stored at addresses 3 and 5 → priority match at address 3.
+
+The gate-level testbench verifies that the same CAM functionality is maintained after synthesis and physical implementation.
+
+## Tiny Tapeout Implementation
+
+The design was subsequently hardened using the Tiny Tapeout SKY130 digital flow for the Tiny Tapeout SKY26C shuttle.
+
+The final GDSII layout was successfully generated and passed the Tiny Tapeout implementation checks.
+
+The hardened design was verified using gate-level simulation, DRC, and LVS.
+
+The DRC verification completed with zero errors.
+
+The LVS verification reported that the circuits match uniquely.
+
+For complete project information, architecture, implementation details, and physical-design results, see [main project README](../README.md).
+
+## References
+
+- [Tiny Tapeout](https://tinytapeout.com/)
+- [Cocotb Documentation](https://docs.cocotb.org/en/stable/)
+- [Tiny Tapeout HDL Testing](https://tinytapeout.com/hdl/testing/)
